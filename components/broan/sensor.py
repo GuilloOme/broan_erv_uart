@@ -21,6 +21,10 @@ CONF_SUPPLY_CFM = "supply_fan_cfm"
 CONF_EXHAUST_CFM = "exhaust_fan_cfm"
 CONF_SUPPLY_RPM = "supply_fan_rpm"
 CONF_EXHAUST_RPM = "exhaust_fan_rpm"
+CONF_FAULT_CODE = "fault_code"
+CONF_WARNING_CODE = "warning_code"
+CONF_BASE_MODE_CODE = "base_mode_code"
+CONF_ACTIVE_MODE_CODE = "active_mode_code"
 
 UNIT_CFM = "CFM"
 UNIT_RPM = "RPM"
@@ -68,6 +72,23 @@ CONFIG_SCHEMA = cv.Schema(
             icon=ICON_FAN,
             unit_of_measurement=UNIT_RPM,
         ),
+
+        # Info / Diagnostic
+        cv.Optional(CONF_FAULT_CODE): sensor.sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+
+        cv.Optional(CONF_WARNING_CODE): sensor.sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+
+        cv.Optional(CONF_BASE_MODE_CODE): sensor.sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
+
+        cv.Optional(CONF_ACTIVE_MODE_CODE): sensor.sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
     }
 )
 
@@ -104,3 +125,19 @@ async def to_code(config):
     if exhaust_rpm_config := config.get(CONF_EXHAUST_RPM):
         sens = await sensor.new_sensor(exhaust_rpm_config)
         cg.add(broan_component.set_exhaust_rpm_sensor(sens))
+
+    if fault_code_config := config.get(CONF_FAULT_CODE):
+        sens = await sensor.new_sensor(fault_code_config)
+        cg.add(broan_component.set_fault_code_sensor(sens))
+
+    if warning_code_config := config.get(CONF_WARNING_CODE):
+        sens = await sensor.new_sensor(warning_code_config)
+        cg.add(broan_component.set_warning_code_sensor(sens))
+
+    if base_mode_code_config := config.get(CONF_BASE_MODE_CODE):
+        sens = await sensor.new_sensor(base_mode_code_config)
+        cg.add(broan_component.set_base_mode_code_sensor(sens))
+
+    if active_mode_code_config := config.get(CONF_ACTIVE_MODE_CODE):
+        sens = await sensor.new_sensor(active_mode_code_config)
+        cg.add(broan_component.set_active_mode_code_sensor(sens))

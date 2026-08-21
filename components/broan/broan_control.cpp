@@ -19,10 +19,10 @@ void BroanComponent::setFanMode( std::string mode )
 		value = BroanFanMode::Turbo;
 	else if( mode == "humidity" )
 		value = BroanFanMode::Humidity;
-	else if( mode == "ovr" )
-		value = BroanFanMode::Ovr;
 	else if( mode == "recirculate" )
 		value = BroanFanMode::Recirculate;
+	else if( mode == "smart" )
+		value = BroanFanMode::Smart;
 	else
 		value = BroanFanMode::Off;
 

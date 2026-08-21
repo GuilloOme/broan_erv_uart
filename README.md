@@ -139,6 +139,30 @@ sensor:
     temperature_out:
       name: Temperature Out
 
+
+text_sensor:
+  - platform: broan
+    
+    # If there is a major fault, it will be indicated here. Else "OK"
+    fault_code:
+      name: "Fault code"
+    
+    # Same as above, but for warnings.
+    warning_code:
+      name: "Warning code"
+
+    # Active mode. Indicates what the fans are currently doing
+    active_mode:
+      name: "Active Mode"
+
+    # Potentially useful for development
+    #model: { name: "Model" }
+    #firmware: { name: "Firmware" }
+    #firmware_version: { name: "Firmware Version" }
+    #hardware_revision: { name: "Hardware Rev" }
+
+
+
 button:
   - platform: broan
 

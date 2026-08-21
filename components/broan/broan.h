@@ -28,6 +28,7 @@ namespace broan {
 
 #define UPDATE_RATE_FAST 10000 // 10 seconds
 #define UPDATE_RATE_SLOW 60000 // 1 minute
+#define UPDATE_RATE_ONCE 0xFFFFFFFE
 #define UPDATE_RATE_NEVER 0xFFFFFFFF
 
 #define MAX_REQUEST_SIZE 10
@@ -49,6 +50,7 @@ enum BroanFieldType
 	Int,
 	Byte,
 	Void,
+	String,
 };
 
 enum BroanCFMMode
@@ -109,9 +111,19 @@ enum BroanField
 	FilterReset, // Set to 1 to reset
 	FilterLife, // default 7884000 / 3 months
 
-	// Unknown fields that look interesting but aren't understood nor read by controllers
-	UnknownA,
-	UnknownB,
+	// Diagnostic
+	WarningCode,
+	FaultCode,
+
+	// State
+	BaseMode,
+	ActiveMode,
+
+	// Info 
+	Firmware,
+	Model,
+	FirmwareVersion,
+	HardwareRevision,
 
 	MAX_FIELDS,
 };
@@ -183,6 +195,17 @@ class BroanComponent : public Component, public uart::UARTDevice
   SUB_SWITCH(humidity_control)
 #endif
 
+#ifdef USE_TEXT_SENSOR
+	SUB_TEXT_SENSOR(model)
+	SUB_TEXT_SENSOR(firmware)
+	SUB_TEXT_SENSOR(firmware_version)
+	SUB_TEXT_SENSOR(hardware_revision)
+	SUB_TEXT_SENSOR(fault_code)
+	SUB_TEXT_SENSOR(warning_code)
+	SUB_TEXT_SENSOR(active_mode)
+	SUB_TEXT_SENSOR(base_mode)
+#endif
+
 public:
 	const uint8_t m_nServerAddress = 0x10;
 	const uint8_t m_nClientAddress = 0x12;
@@ -226,11 +249,17 @@ public:
 		{ 0x01, 0x30, BroanFieldType::Byte, {0}, UPDATE_RATE_SLOW }, // Set to 0x01 to reset filter
 		{ 0x08, 0x30, BroanFieldType::Int, {0}, UPDATE_RATE_SLOW }, // Number of seconds until filter needs reset. Set along side reset byte
 
+		// Diagnostic
+		{ 0x1A, 0x00, BroanFieldType::Int, {0}, UPDATE_RATE_FAST }, // Warning code -1 = OK, if multiple warnings, will cycle through on each read.
+		{ 0x17, 0x00, BroanFieldType::Int, {0}, UPDATE_RATE_FAST }, // Fault code, -1 = OK
+		{ 0x02, 0x20, BroanFieldType::Int, {0}, UPDATE_RATE_FAST }, // Base mode.
+		{ 0x07, 0x20, BroanFieldType::Int, {0}, UPDATE_RATE_FAST }, // Active mode.
 
-		// Interesting fields found by scan
-		{ 0x08, 0xE0, BroanFieldType::Float, {0}, UPDATE_RATE_NEVER }, // Unknown. Seems to change a lot. 38.943115 / 1109116352 (Does not correlate with fan speed)
-		{ 0x09, 0xE0, BroanFieldType::Float, {0}, UPDATE_RATE_NEVER }, // Unknown. Seems to change a lot. 36.360962 / 1108439456 (Same as above)
-
+		// Info
+		{ 0x02, 0x00, BroanFieldType::String,  {0}, UPDATE_RATE_ONCE }, // Firmware
+		{ 0x02, 0x60, BroanFieldType::String,  {0}, UPDATE_RATE_ONCE }, // Model
+		{ 0x01, 0x00, BroanFieldType::String,  {0}, UPDATE_RATE_ONCE }, // Firmware Version
+		{ 0x01, 0x60, BroanFieldType::String,  {0}, UPDATE_RATE_ONCE }, // Hardware Revision
 /*
 		// Unknown fields scanned by the VTSPEEDW
 		{ 0x02, 0x30, BroanFieldType::Byte, {0}, UPDATE_RATE_SLOW }, // Unknown. 1. Set to 0 in TURBO mode
@@ -245,13 +274,17 @@ public:
 		{ 0x06, 0x21, BroanFieldType::Byte, {0} }, // Unknown. 0 / 00
 		{ 0x05, 0x21, BroanFieldType::Byte, {0} }, // Unknown. 0 / 00
 		{ 0x04, 0x21, BroanFieldType::Byte, {0} }, // Unknown. 0 / 00
-		{ 0x02, 0x20, BroanFieldType::Byte, {0} }, // Unknown. Set to 8 when in INT mode.
-		{ 0x17, 0x00, BroanFieldType::Int, {0} }, // Unknown. NaN / ffffffff
 		{ 0x00, 0x30, BroanFieldType::Byte, {0} }, // Unknown. 0 / 00
 		{ 0x00, 0x22, BroanFieldType::Int, {0} }, // Unknown. 14400 / 40380000
 		{ 0x07, 0x50, BroanFieldType::Int, {0} }, // Unknown. VTSPEEDW often sets this to -1
 		{ 0x03, 0x20, BroanFieldType::Byte, {0} }, // Unknown. Set to 0 when entering INT mode
 		{ 0x08, 0x20, BroanFieldType::Byte, {0} }, // Unknown. Set to 0 when entering SMART mode, set to 1 in continuous modes.
+
+		// Airstream humidity? Needs verification. Broan wiring and parts diagrams for b150e75nt do not list humidity sensors, only the single j7a thermistor. 
+		// May be specific to certain models, this model DOES report changing values on these registers, so I'm suspicious.
+		{ 0x08, 0xE0, BroanFieldType::Float, {0}, UPDATE_RATE_NEVER }, // Unknown. Seems to change a lot. 38.943115 / 1109116352 (Does not correlate with fan speed)
+		{ 0x09, 0xE0, BroanFieldType::Float, {0}, UPDATE_RATE_NEVER }, // Unknown. Seems to change a lot. 36.360962 / 1108439456 (Same as above)
+
 */
 	};
 
@@ -290,6 +323,7 @@ private:
 	std::map<uint16_t, BroanField_t> m_vecFieldData;
 #endif
 
+	std::map<uint16_t, std::string> m_mapStrings;
 	std::vector<uint8_t> m_vecHeader;
 	bool m_bHaveHeader = false;
 
@@ -321,6 +355,7 @@ private:
 	void handleUnknownField(uint32_t nOpcodeHigh, uint32_t nOpcodeLow, uint8_t len, uint32_t i, const std::vector<uint8_t>& message );
 
 	void queueMessage(std::vector<uint8_t>& message);
+	std::string activeModeToString( int code );
 
 
 protected:
