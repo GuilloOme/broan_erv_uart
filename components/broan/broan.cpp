@@ -19,8 +19,12 @@ void BroanComponent::setup()
     	this->flow_control_pin_->setup();
 
 	// Initial state
-	warning_code_text_sensor_->publish_state("OK");
-	fault_code_text_sensor_->publish_state("OK");
+#ifdef USE_TEXT_SENSOR
+	if( warning_code_text_sensor_ )
+		warning_code_text_sensor_->publish_state("OK");
+	if( fault_code_text_sensor_ )
+		fault_code_text_sensor_->publish_state("OK");
+#endif
 }
 
 
