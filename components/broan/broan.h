@@ -110,6 +110,7 @@ enum BroanField
 	// Maintenance
 	FilterReset, // Set to 1 to reset
 	FilterLife, // default 7884000 / 3 months
+	FilterLifeStage, // 09:30. Must be preloaded with the desired FilterLife value before FilterReset is set, otherwise the ERV ignores the reset.
 
 	// Diagnostic
 	WarningCode,
@@ -248,6 +249,7 @@ public:
 		// Maintenance
 		{ 0x01, 0x30, BroanFieldType::Byte, {0}, UPDATE_RATE_SLOW }, // Set to 0x01 to reset filter
 		{ 0x08, 0x30, BroanFieldType::Int, {0}, UPDATE_RATE_SLOW }, // Number of seconds until filter needs reset. Set along side reset byte
+		{ 0x09, 0x30, BroanFieldType::Int, {0}, UPDATE_RATE_NEVER }, // FilterLifeStage. Wall controller writes the desired FilterLife here first, before FilterReset.
 
 		// Diagnostic
 		{ 0x1A, 0x00, BroanFieldType::Int, {0}, UPDATE_RATE_FAST }, // Warning code -1 = OK, if multiple warnings, will cycle through on each read.
